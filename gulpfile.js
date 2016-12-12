@@ -47,11 +47,11 @@ gulp.task("reload-changes", ['copy-js-sdk', 'copy-js-sdk-tests'], function() {
 
 gulp.task("transpile-javascript", shell.task([
   'webpack --progress --sort-assets-by --watch --colors ' +
-  (IS_PROD ? '--production' : '') + ' ' +
-  (IS_TEST ? '--test' : '') + ' ' +
-  (IS_STAGING ? '--staging' : '') + ' ' +
-  (SIZE_STATS ? '--stats' : '') +
-  (IS_ES6 ? '--es6' : '')
+  (IS_PROD ? "--define process.env.NODE_ENV='production'" : '') + ' ' +
+  (IS_TEST ? "--define process.env.NODE_ENV='test'" : '') + ' ' +
+  (IS_STAGING ? "--define process.env.NODE_ENV='staging'" : '') + ' ' +
+  (SIZE_STATS ? "--define process.env.NODE_ENV='stats'" : '') + ' ' +
+  (IS_ES6 ? "--define process.env.NODE_ENV='es6'" : '')
 ]));
 
 function copyFile(prefix) {

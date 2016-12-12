@@ -32,7 +32,7 @@ export default class HttpModal {
         this.options['modalMessage'] = this.options['modalMessage'].substring(0, 90);
         this.options['modalButtonText'] = this.options['modalButtonText'].substring(0, 35);
 
-        require("./httpModal.scss");
+        var _context5 = require("./httpModal.scss");
     }
 
     create() {

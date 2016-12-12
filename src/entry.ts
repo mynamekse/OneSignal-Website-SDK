@@ -1,4 +1,4 @@
-require('es6-promise').polyfill();
+var _context = require('es6-promise').polyfill();
 
 import Environment from './Environment';
 import { getSdkLoadCount, incrementSdkLoadCount } from './utils';
@@ -18,7 +18,7 @@ if (Environment.isBrowser()) {
     if (typeof OneSignal !== "undefined")
       var predefinedOneSignalPushes = OneSignal;
 
-    require("expose?OneSignal!./OneSignal.ts");
+    var _context2 = require("expose-loader?OneSignal!./OneSignal.ts");
 
     if (predefinedOneSignalPushes)
       for (var i = 0; i < predefinedOneSignalPushes.length; i++)
@@ -27,5 +27,5 @@ if (Environment.isBrowser()) {
 }
 else if (Environment.isServiceWorker()) {
   // We're running as the service worker
-  require("expose?ServiceWorker!./service-worker/ServiceWorker.ts");
+  var _context3 = require("expose-loader?ServiceWorker!./service-worker/ServiceWorker.ts");
 }

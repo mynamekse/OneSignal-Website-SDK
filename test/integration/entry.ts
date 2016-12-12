@@ -3,7 +3,7 @@ import Utils from './utils';
 
 export default class OneSignalTests {
   static runTests() {
-    require('./tests.js');
+    var _context7 = require('./tests.js');
   }
 }
 

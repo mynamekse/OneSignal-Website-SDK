@@ -121,7 +121,7 @@
     "ignore-loader": "^0.1.2",
     "nconf": "^0.8.4",
     "typescript": "^2.1.1",
-    "webpack": "https://registry.npmjs.org/webpack/-/webpack-1.13.2.tgz",
+    "webpack": "v2.1.0-beta.27",
     "webpack-bundle-analyzer": "^1.5.3"
   }
 }

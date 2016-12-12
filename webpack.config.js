@@ -4,6 +4,7 @@ var BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlug
 
 
 var IS_PROD = process.argv.indexOf('--prod') >= 0 || process.argv.indexOf('--production') >= 0;
+IS_PROD = true;
 var IS_ES6 = process.argv.indexOf('--es6') >= 0;
 var IS_STAGING = process.argv.indexOf('--staging') >= 0;
 var IS_TEST = process.argv.indexOf('--test') >= 0;
@@ -71,9 +72,11 @@ function getWebSdkModuleEntry() {
 
 var webSdkPlugins = [
   new webpack.ProvidePlugin({
-    'fetch': 'imports?this=>global!exports?global.fetch!whatwg-fetch'
+    'fetch': 'imports-loader?this=>global!exports-loader?global.fetch!whatwg-fetch'
   }),
-  new webpack.optimize.DedupePlugin(),
+  new webpack.LoaderOptionsPlugin({
+    minimize: true
+  }),
   new webpack.optimize.OccurrenceOrderPlugin(),
   new webpack.optimize.UglifyJsPlugin({
     sourceMap: true,
@@ -166,17 +169,13 @@ const ONESIGNAL_WEB_SDK = {
     },
       {
         test: /\.scss$/,
-        loaders: ["style", "css", "autoprefixer-loader", "sass"]
+        loaders: ["style-loader", "css-loader", "autoprefixer-loader", "sass-loader"]
       }]
   },
   resolve: {
-    extensions: ["", ".ts", ".js"]
+    extensions: [".ts", ".js"]
   },
   devtool: 'source-map',
-  sassLoader: {
-    includePaths: [path.resolve(__dirname, "./src")]
-  },
-  debug: !IS_PROD,
   plugins: webSdkPlugins
 };
 
@@ -206,15 +205,13 @@ const ONESIGNAL_WEB_SDK_TESTS = {
     ]
   },
   resolve: {
-    extensions: ["", ".ts", ".js"]
+    extensions: [".ts", ".js"]
   },
-  debug: !IS_PROD,
   plugins: [
     new webpack.ProvidePlugin({
-      'fetch': 'imports?this=>global!exports?global.fetch!whatwg-fetch'
+      'fetch': 'imports-loader?this=>global!exports-loader?global.fetch!whatwg-fetch'
     }),
     new webpack.optimize.OccurrenceOrderPlugin(),
-    new webpack.optimize.DedupePlugin(),
     new webpack.DefinePlugin(getBuildDefines()),
     changesDetectedMessagePlugin
   ]
@@ -250,11 +247,9 @@ const ONESIGNAL_WEB_SDK_TEST_SERVER = {
       }]
   },
   resolve: {
-    extensions: ["", ".ts", ".js"]
+    extensions: [".ts", ".js"]
   },
-  debug: !IS_PROD,
   plugins: [
-    new webpack.optimize.DedupePlugin(),
     new webpack.DefinePlugin(getBuildDefines()),
     changesDetectedMessagePlugin
   ]

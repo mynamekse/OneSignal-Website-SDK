@@ -21,7 +21,7 @@ export default class Popover {
     }
 
     constructor(options) {
-        require("./popover.scss");
+        var _context6 = require("./popover.scss");
         if (!options) {
             this.options = {};
         } else {
