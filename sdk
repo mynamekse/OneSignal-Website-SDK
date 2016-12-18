@@ -1,0 +1,364 @@
+#! /usr/bin/env node
+
+const yargonaut = require('yargonaut')
+                          .style('blue', 'required')
+                          .errorsStyle('red.bold')
+                          .helpStyle('green')
+const yargs = require('yargs');
+const chalk = require('chalk');
+const nconf = require('nconf');
+const json5 = require('json5');
+const spawn = require('child_process').spawn;
+const fs = require('fs-extra');
+const path = require('path');
+const microtime = require('microtime')
+
+const argv = yargs
+  .usage('★ OneSignal Web SDK Build Tool ★')
+  .help('help').alias('help', 'h')
+  .wrap(120)
+  .option('env', {
+    alias: 'e',
+    choices: ['development', 'staging', 'production'],
+    description: `The target environment for this build.`,
+    requiresArg: true,
+    type: 'string',
+    required: true,
+    default: 'development',
+    global: true,
+  })
+  .option('config', {
+    alias: 'c',
+    description: `Path to config.json file.`,
+    requiresArg: true,
+    required: true,
+    default: './config.json',
+    global: true
+  })
+  .option('tests', {
+    alias: 't',
+    description: `Include this flag to build tests as well.
+                  Increases compilation time.`,
+    requiresArg: false,
+    required: false,
+    type: 'boolean',
+    default: false,
+    global: true
+  })
+  .command({
+    command: 'build',
+    aliases: 'b',
+    desc: `Builds the web SDK.  
+           Optionally add '--tests' to build with tests.`,
+    handler: onBuild
+  })
+  .example('./sdk build --tests', 'Build the web SDK for development (default) with tests.')
+  .example('./sdk build --env prod', 'Build the web SDK for production.')
+  .strict()
+  .demand(1)
+  .argv;
+
+const stats = {
+  lastTypeScriptChangeDetected: microtime.now(),
+  isIncremental: false
+};
+
+function printEnvironment(config) {
+  let env = config.get('env')
+  let color = chalk.white.bgBlue;
+  if (env === 'staging') {
+    color = chalk.white.bgMagenta;
+  }
+  else if (env === 'production') {
+    color = chalk.white.bgRed;
+  }
+  console.log(`${chalk.blue('Environment:')} ${color(env.toUpperCase())}`)
+  console.log(`${chalk.blue('Current Working Directory:')} ${process.cwd()}`)
+  console.log();
+}
+
+function onBuild(argv) {
+  var config = nconf.env()
+                    .file({ file: argv.config, format: json5 });
+  config.set('env', argv.env);
+  config.set('tests', argv.tests);
+  console.log('OneSignal Web SDK Build Tool');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  printEnvironment(config);
+  return clean(config)
+         .then(() => transpileTypescript(config))
+         .then(() => runModuleBundler(config))
+         .catch(e => console.error(chalk.red(`Fatal build error: ${e}`)));
+}
+
+function clean(config) {
+  return new Promise((resolve, reject) => {
+    const rmDir = spawn('rm', [
+      '--recursive',
+      '--preserve-root',
+      '--force',
+      config.get('build:tempDirectory')
+    ]);
+    rmDir.stdout.on('data', data => {
+      console.log(`${chalk.blue('[Clean]')} ${data.toString()}`);
+    });
+    rmDir.stderr.on('data', function (data) {
+      console.error(chalk.red(`${chalk.blue('[Clean]')} ${data.toString()}`));
+    });
+    rmDir.on('exit', function (code) {
+      if (code !== 0) {
+        reject(chalk.red(`${chalk.blue('[Clean]')} 'rm' exited with code ${code}`));
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Transpiles source TypeScript files to individual JavaScript files based on passed tsconfig.json.
+ *
+ * Watches for changes to source TypeScript files (even over VMWare network file system!).
+ */
+function transpileTypescript(config) {
+  stats.lastTypeScriptChangeDetected = microtime.now();
+  const tsconfigFilename = config.get('tests') ? 'tsconfig.tests.json' : 'tsconfig.json';
+  return new Promise((resolve, reject) => {
+    const transpiler = spawn('tsc', [
+      '--project',
+      tsconfigFilename,
+      '--watch',
+      '--rootDir',
+      './',
+      '--outDir',
+      config.get("build:typescriptOutDir")
+    ]);
+    transpiler.stdout.on('data', data => {
+      const message = data.toString();
+      console.log(`${chalk.blue('[TypeScript Transpiler]')} ${message}`);
+      if (message.includes('Compilation complete.')) {
+        resolve();
+      } else if (message.includes('File change detected. Starting incremental compilation')) {
+        stats.isIncremental = true;
+        stats.lastTypeScriptChangeDetected = microtime.now();
+      }
+    });
+    transpiler.stderr.on('data', function (data) {
+      console.error(chalk.red(`${chalk.blue('[TypeScript Transpiler]')} ${data.toString()}`));
+    });
+    transpiler.on('exit', function (code) {
+      if (code !== 0) {
+        reject(chalk.red(`${chalk.blue('[TypeScript Transpiler]')} 'tsc' exited with code ${code}`));
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Watches for changes to TypeScript transpiler's generated JavaScript files, and bundles all JavaScript files
+ * together into one bundle. Pipeline transformations are as follows:
+ *
+ * 1. Bundle JS files into one module.
+ * 2. Bundle SCSS files into one CSS file.
+ * 3. Replaces $_VAR preprocessor variables for things like $_VERSION and $_DEV.
+ * 4. Minifies the CSS using clean-css.
+ * 5. Minifies the JavaScript using UglifyJS.
+ *
+ * These transformations are controlled by the brunch-config.js file.
+ */
+function runModuleBundler(config) {
+  const env = config.get('env');
+  return new Promise((resolve, reject) => {
+    const enableIgnoredMessagesPattern = true;
+    const ignoredMessagePatterns = [
+      /config.overrides.*perhaps you meant/,
+      ///The correct use of entry points is/,
+      /compiled, but not written. Check/
+    ];
+    const bundler = spawn('brunch', [
+      'watch',
+      '--env',
+      env,
+      '--jobs',
+      '3',
+    ], {
+      env: Object.assign(Object.create(process.env), {
+        bundlerOutDir: config.get('build:bundlerOutDir'),
+        stylesheetsSrcDir: config.get('build:stylesheetsSrcDir'),
+        stylesheetsBundleName: config.get('build:stylesheetsBundleName'),
+        typescriptOutDir: config.get('build:typescriptOutDir'),
+        sdkBundleName: config.get('build:sdkBundleName'),
+        integrationTestsBundleName: config.get('build:integrationTestsBundleName'),
+        unitTestsBundleName: config.get('build:unitTestsBundleName'),
+      })
+    });
+    bundler.stdout.on('data', data => {
+      const message = data.toString();
+      console.log(`${chalk.blue('[Module Bundler]')} ${message}`);
+      if (message.includes('info: compiled')) {
+        runPostModuleBuilderPipeline(config);
+      }
+    });
+    bundler.stderr.on('data', function (data) {
+      const message = data.toString();
+      if (enableIgnoredMessagesPattern) {
+        for (const ignoredMessagePattern of ignoredMessagePatterns) {
+          if (message.match(ignoredMessagePattern))
+            return;
+        }
+      }
+      console.error(chalk.red(`${chalk.blue('[Module Bundler]')} ${message}`));
+    });
+    bundler.on('exit', function (code) {
+      if (code !== 0) {
+        reject(chalk.red(`${chalk.blue('[Module Bundler]')} 'brunch' exited with code ${code}`));
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * 6. Transforms multi-level source map back to original source map using Sorcery.
+ *
+ * For some reason, Sorcery requires the file and map to be at the project root.
+ *
+ * Copy src/map to root -> Apply Sorcery -> Copy files to build/bundler-sourcemapped/ -> Remove copies
+ */
+function transformSourceMaps(config) {
+  try {
+    const prefix = getBuildPrefix(config);
+    const buildDir = config.get('build:bundlerOutDir');
+    const bundledFilenames = walkSync(path.resolve(buildDir))
+                            .map(file => file.slice(file.lastIndexOf('/') + 1));
+    fs.copySync(buildDir, './');
+
+    const railsProjectRoot = path.resolve(config.get('build:railsProjectRoot'));
+    const railsPublicDir = railsProjectRoot + '/public';
+    const railsPublicSdksDir = railsProjectRoot + '/public/sdks';
+    const sdkBundleName = config.get('build:sdkBundleName');
+    const integrationTestsBundleName = config.get('build:integrationTestsBundleName');
+    const unitTestsBundleName = config.get('build:unitTestsBundleName');
+
+    /**
+     * Copy: build/OneSignalSDK.js  ==>  OneSignal/public/sdks/OneSignalSDK.js
+     *                                  OneSignal/public/sdks/OneSignalSDKWorker.js
+     *                                  OneSignal/public/OneSignalSDKWorker.js
+     *                                  OneSignal/public/OneSignalSDKUpdaterWorker.js
+     *
+     * Copy: build/OneSignalSDK.js.map  ==>  OneSignal/public/sdks/OneSignalSDK.js.map
+     *                                    OneSignal/public/sdks/OneSignalSDKWorker.js.map
+     *                                    OneSignal/public/OneSignalSDKWorker.js.map
+     *                                    OneSignal/public/OneSignalSDKUpdaterWorker.js.map
+     */
+    var transformPromises = [];
+
+    bundledFilenames.map(filename => {
+      if (!filename.endsWith('.js'))
+        return;
+      transformPromises.push(
+        transformSourceMapHelperMultiple(`${sdkBundleName}`, [
+          `${railsPublicSdksDir}/${prefix}OneSignalSDK.js`,
+          `${railsPublicSdksDir}/${prefix}OneSignalSDKWorker.js`,
+          `${railsPublicDir}/${prefix}OneSignalSDKWorker.js`,
+          `${railsPublicDir}/${prefix}OneSignalSDKUpdaterWorker.js`
+        ])
+      )
+    });
+
+    return Promise.all(transformPromises)
+                  .then(() => {
+                    bundledFilenames.map(filename => {
+                      fs.removeSync(filename);
+                      fs.removeSync(filename + '.map');
+
+                    });
+                  });
+
+  } catch (e) {
+    return Promise.reject(`${chalk.blue('[Transform Source Maps]')} ${chalk.red(e)}`);
+  }
+}
+
+function transformSourceMapHelperMultiple(input, outputs) {
+  return Promise.all(outputs.map(output => transformSourceMapHelper(input, output)));
+}
+
+function transformSourceMapHelper(input, output) {
+  return new Promise((resolve, reject) => {
+    var sorcerer = spawn('sorcery', [
+      '--input',
+      input,
+      '--output',
+      output
+    ]);
+    sorcerer.stdout.on('data', data => {
+      const message = data.toString();
+      console.log(`${chalk.blue('[Transform Source Maps]')} ${message}`);
+    });
+    sorcerer.stderr.on('data', function (data) {
+      console.error(chalk.red(`${chalk.blue('[Transform Source Maps]')} ${data.toString()}`));
+    });
+    sorcerer.on('exit', function (code) {
+      if (code !== 0) {
+        reject(chalk.red(`${chalk.blue('[Transform Source Maps]')} 'sorcery' exited with code ${code}`));
+      } else {
+        console.log(`${chalk.blue('[Transform Source Maps]')} Generated new file from ${chalk.blue(input)} --> ${chalk.blue(output)}/.map`);
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Returns Dev- for dev builds, Staging- for staging builds.
+ */
+function getBuildPrefix(config) {
+  const env = config.get('env');
+  if (env === "staging") {
+    return 'Staging-';
+  } else if (env === "development") {
+    return 'Dev-';
+  } else {
+    return '';
+  }
+}
+
+function cloneFile(srcPath, cloneTargetPaths) {
+  for (const cloneTargetPath of cloneTargetPaths) {
+    console.log(`${chalk.blue('[Distribute Files]')} Copy ${chalk.blue(srcPath)} --> ${chalk.blue(cloneTargetPath)}`);
+    fs.copySync(srcPath, cloneTargetPath);
+  }
+}
+
+function walkSync(dir, filelist) {
+  var files = fs.readdirSync(dir)
+  filelist = filelist || []
+  files.forEach(function (file) {
+    var nestedPath = path.join(dir, file)
+    filelist.push(nestedPath)
+  })
+  return filelist;
+}
+
+/**
+ * Occurs after Brunch finishes.
+ *
+ * 6. Transforms multi-level source map back to original source map using Sorcery.
+ * 7. Copies output files to target output directory.
+ */
+function runPostModuleBuilderPipeline(config) {
+  transformSourceMaps(config)
+    .then(() => {
+      console.log();
+      const timeDeltaMs = Math.round((microtime.now() - stats.lastTypeScriptChangeDetected) / 1000);
+      const buildType = stats.isIncremental ? 'Incremental' : 'Initial';
+      console.log(`${chalk.yellow(`[${buildType} Build Finished]`)} Finished in ${chalk.blue(timeDeltaMs)} ms. Watching for changes...`);
+      console.log();
+      console.log(Array(process.stdout.columns).join('┄'));
+      console.log();
+    });
+}
