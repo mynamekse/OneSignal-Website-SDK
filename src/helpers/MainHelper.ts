@@ -20,8 +20,7 @@ import HttpModal from "../http-modal/HttpModal";
 import Bell from "../bell/Bell";
 import SubscriptionHelper from "./SubscriptionHelper";
 import EventHelper from "./EventHelper";
-
-declare var OneSignal: any;
+import OneSignal from "../OneSignal";
 
 
 export default class MainHelper {

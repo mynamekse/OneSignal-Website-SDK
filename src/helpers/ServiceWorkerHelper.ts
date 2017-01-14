@@ -18,8 +18,7 @@ import Postmam from '../Postmam';
 import * as Cookie from 'js-cookie';
 import MainHelper from "./MainHelper";
 import SubscriptionHelper from "./SubscriptionHelper";
-
-declare var OneSignal: any;
+import OneSignal from "../OneSignal";
 
 
 export default class ServiceWorkerHelper {

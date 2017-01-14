@@ -49,7 +49,7 @@ export default class OneSignal {
    * Pass in the full URL of the default page you want to open when a notification is clicked.
    * @PublicApi
    */
-  static async setDefaultNotificationUrl(url: URL) {
+  static async setDefaultNotificationUrl(url: string) {
     if (!ValidatorUtils.isValidUrl(url, { allowNull: true }))
       throw new InvalidArgumentError('url', InvalidArgumentReason.Malformed);
     await awaitOneSignalInitAndSupported();
@@ -309,7 +309,7 @@ export default class OneSignal {
    * Prompts the user to subscribe.
    * @PublicApi
    */
-  static registerForPushNotifications(options) {
+  static registerForPushNotifications(options?: any) {
     if (!isPushNotificationsSupported()) {
       log.debug('OneSignal: Push notifications are not supported.');
     }
@@ -389,9 +389,9 @@ export default class OneSignal {
           }
 
           log.debug(`(${Environment.getEnv()}) Showing HTTP permission request.`);
-          if (window.Notification.permission === "default") {
+          if ((window as any).Notification.permission === "default") {
             OneSignal._showingHttpPermissionRequest = true;
-            window.Notification.requestPermission(permission => {
+            (window as any).Notification.requestPermission(permission => {
               OneSignal._showingHttpPermissionRequest = false;
               resolve(permission);
               log.debug('HTTP Permission Request Result:', permission);
@@ -938,8 +938,5 @@ log.info(`%cOneSignal Web SDK loaded (version ${OneSignal._VERSION}, ${Environme
 if (Environment.isEs6DebuggingModule()) {
   log.warn('OneSignal: This is a specially built version of the web SDK for debugging ES6 async/await.');
 }
-log.debug(`Current Page URL: ${location.href}`);
+log.debug(`Current Page URL: ${typeof location === "undefined" ? "NodeJS" : location.href}`);
 log.debug(`Browser Environment: ${Browser.name} ${Browser.version}`);
-
-module.exports = OneSignal;
-

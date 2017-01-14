@@ -12,6 +12,7 @@ import {ServiceWorkerState} from "./models/ServiceWorkerState";
 import {Notification} from "./models/Notification";
 import SubscriptionHelper from "./helpers/SubscriptionHelper";
 import {Timestamp} from "./models/Timestamp";
+import OneSignal from "./OneSignal";
 
 export default class Database {
 
@@ -162,7 +163,7 @@ export default class Database {
 
   static async getAppState(): Promise<AppState> {
     const state = new AppState();
-    state.defaultNotificationUrl = await Database.get<URL>('Options', 'defaultUrl');
+    state.defaultNotificationUrl = await Database.get<string>('Options', 'defaultUrl');
     state.defaultNotificationTitle = await Database.get<string>('Options', 'defaultTitle');
     state.lastKnownPushEnabled = await Database.get<boolean>('Options', 'isPushEnabled');
     state.clickedNotifications = await Database.get<Map<URL, [Notification, Timestamp]>>('NotificationOpened');

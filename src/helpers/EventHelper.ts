@@ -11,8 +11,7 @@ import {
 } from '../utils';
 import MainHelper from "./MainHelper";
 import SubscriptionHelper from "./SubscriptionHelper";
-
-declare var OneSignal: any;
+import OneSignal from "../OneSignal";
 
 
 export default class EventHelper {

@@ -133,6 +133,7 @@ function transpileTypescript(config) {
       '--outDir',
       config.get("build:typescriptOutDir")
     ]);
+    console.log(`${chalk.blue('[TypeScript Transpiler]')} Using ${tsconfigFilename}`);
     transpiler.stdout.on('data', data => {
       const message = data.toString();
       console.log(`${chalk.blue('[TypeScript Transpiler]')} ${message}`);
@@ -192,6 +193,7 @@ function runModuleBundler(config) {
         sdkBundleName: config.get('build:sdkBundleName'),
         integrationTestsBundleName: config.get('build:integrationTestsBundleName'),
         unitTestsBundleName: config.get('build:unitTestsBundleName'),
+        isTesting: config.get('tests')
       })
     });
     bundler.stdout.on('data', data => {

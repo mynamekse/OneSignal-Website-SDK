@@ -20,7 +20,6 @@ import HttpModal from "../http-modal/HttpModal";
 import Bell from "../bell/Bell";
 import SubscriptionHelper from "./SubscriptionHelper";
 import EventHelper from "./EventHelper";
-declare var OneSignal: any;
 
 
 export default class TestHelper {

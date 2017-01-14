@@ -25,8 +25,7 @@ import InitHelper from "./InitHelper";
 import EventHelper from "./EventHelper";
 import SubscriptionHelper from "./SubscriptionHelper";
 import { InvalidStateReason } from "../errors/InvalidStateError";
-
-declare var OneSignal: any;
+import OneSignal from "../OneSignal";
 
 
 export default class HttpHelper {
@@ -212,7 +211,7 @@ must be opened as a result of a subscription call.</span>`);
     });
     OneSignal.iframePostmam.on(OneSignal.POSTMAM_COMMANDS.SHOW_HTTP_PERMISSION_REQUEST, message => {
       log.debug(Environment.getEnv() + " Calling showHttpPermissionRequest() inside the iFrame, proxied from host.");
-      let options = {};
+      let options = null;
       if (message.data) {
         options = message.data;
       }

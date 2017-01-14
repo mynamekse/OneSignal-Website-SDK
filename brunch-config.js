@@ -5,7 +5,8 @@ var {
   typescriptOutDir,
   sdkBundleName,
   integrationTestsBundleName,
-  unitTestsBundleName
+  unitTestsBundleName,
+  isTesting
 } = process.env;
 
 const path = require('path');

@@ -21,8 +21,7 @@ import ServiceWorkerHelper from "./ServiceWorkerHelper";
 import EventHelper from "./EventHelper";
 import PushPermissionNotGrantedError from "../errors/PushPermissionNotGrantedError";
 import TestHelper from "./TestHelper";
-
-declare var OneSignal: any;
+import OneSignal from "../OneSignal";
 
 
 export default class SubscriptionHelper {
@@ -206,7 +205,7 @@ export default class SubscriptionHelper {
     var notificationPermissionBeforeRequest = '';
 
     OneSignal.getNotificationPermission().then((permission) => {
-      notificationPermissionBeforeRequest = permission as string;
+      notificationPermissionBeforeRequest = permission as any;
     })
              .then(() => {
                log.debug(`Calling %cServiceWorkerRegistration.pushManager.subscribe()`, getConsoleStyle('code'));
@@ -366,7 +365,7 @@ export default class SubscriptionHelper {
                // Chrome doesn't show when the user clicked 'X' for cancel
                // We get the same error as if the user had clicked denied, but we can check Notification.permission to see if it is still 'default'
                OneSignal.getNotificationPermission().then((permission) => {
-                 if (permission === 'default') {
+                 if (permission as any === 'default') {
                    // The user clicked 'X'
                    EventHelper.triggerNotificationPermissionChanged(true);
                    TestHelper.markHttpsNativePromptDismissed();

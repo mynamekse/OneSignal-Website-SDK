@@ -6,6 +6,7 @@ import LimitStore from '../LimitStore';
 import Message from './Message';
 import SubscriptionHelper from "../helpers/SubscriptionHelper";
 import Database from "../Database";
+import OneSignal from "../OneSignal";
 
 
 export default class Button extends ActiveAnimatedElement {

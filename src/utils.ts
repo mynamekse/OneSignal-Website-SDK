@@ -7,6 +7,7 @@ import Database from './Database';
 import PushNotSupportedError from "./errors/PushNotSupportedError";
 import {InvalidArgumentError, InvalidArgumentReason} from "./errors/InvalidArgumentError";
 import SubscriptionHelper from "./helpers/SubscriptionHelper";
+import OneSignal from "./OneSignal";
 
 export function isArray(variable) {
   return Object.prototype.toString.call( variable ) === '[object Array]';
@@ -29,6 +30,10 @@ export function decodeHtmlEntities(text) {
 }
 
 export function isPushNotificationsSupported () {
+  if (Environment.isTest()) {
+    return true;
+  }
+
   if (Browser.ios || (<any>Browser).ipod || (<any>Browser).iphone || (<any>Browser).ipad)
     return false;
 

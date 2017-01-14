@@ -23,8 +23,7 @@ import SubscriptionHelper from "./SubscriptionHelper";
 import EventHelper from "./EventHelper";
 import { InvalidStateError, InvalidStateReason } from "../errors/InvalidStateError";
 import AlreadySubscribedError from "../errors/AlreadySubscribedError";
-
-declare var OneSignal: any;
+import OneSignal from "../OneSignal";
 
 
 export default class InitHelper {
@@ -283,7 +282,7 @@ export default class InitHelper {
         OneSignal.getNotificationPermission()
       ])
              .then(([appId, isPushEnabled, notificationPermission]) => {
-               let modalUrl = `${OneSignal.modalUrl}?${MainHelper.getPromptOptionsQueryString()}&id=${appId}&httpsPrompt=true&pushEnabled=${isPushEnabled}&permissionBlocked=${notificationPermission === 'denied'}&promptType=modal`;
+               let modalUrl = `${OneSignal.modalUrl}?${MainHelper.getPromptOptionsQueryString()}&id=${appId}&httpsPrompt=true&pushEnabled=${isPushEnabled}&permissionBlocked=${(notificationPermission as any) === 'denied'}&promptType=modal`;
                log.info('Opening HTTPS modal prompt:', modalUrl);
                let modal = MainHelper.createHiddenSubscriptionDomModal(modalUrl);
 

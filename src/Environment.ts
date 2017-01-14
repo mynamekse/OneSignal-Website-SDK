@@ -16,7 +16,7 @@ export default class Environment {
   }
 
   static isEs6DebuggingModule() {
-    return $_IS_ES6;
+    return false;
   }
 
   static getEnv() {
@@ -85,19 +85,19 @@ export default class Environment {
   }
 
   static isStaging() {
-    return $_STAGING;
+    return false;
   }
 
   static isDev() {
-    return $_DEV;
+    return true;
   }
 
   static version() {
-    return $_VERSION;
+    return "120060";
   }
 
   static isTest() {
-    return $_TEST;
+    return true;
   }
 
   static isCustomSubdomain() {
@@ -142,6 +142,7 @@ export default class Environment {
   }
 
   static supportsServiceWorkers() {
-    return 'serviceWorker' in navigator;
+    return typeof navigator !== "undefined" &&
+           'serviceWorker' in navigator;
   }
 }
