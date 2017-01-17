@@ -146,18 +146,21 @@ export default class Database {
     config.subdomain = await Database.get<string>('Options', 'subdomain');
     config.autoRegister = await Database.get<boolean>('Options', 'autoRegister');
     config.serviceWorkerConfig = await Database.get<ServiceWorkerConfig>('Options', 'serviceWorkerConfig');
+    config.vapidPublicKey = await Database.get<string>('Options', 'vapidPublicKey');
     return config;
   }
 
   static async setAppConfig(appConfig: AppConfig) {
     if (appConfig.appId)
-      await Database.put('Ids', {type: 'appId', id: appConfig.appId})
+      await Database.put('Ids', {type: 'appId', id: appConfig.appId});
     if (appConfig.subdomain)
-      await Database.put('Options', {key: 'subdomain', value: appConfig.subdomain})
+      await Database.put('Options', {key: 'subdomain', value: appConfig.subdomain});
     if (appConfig.autoRegister)
-      await Database.put('Options', {key: 'autoRegister', value: appConfig.autoRegister})
+      await Database.put('Options', {key: 'autoRegister', value: appConfig.autoRegister});
     if (appConfig.serviceWorkerConfig)
-      await Database.put('Options', {key: 'serviceWorkerConfig', value: appConfig.serviceWorkerConfig})
+      await Database.put('Options', {key: 'serviceWorkerConfig', value: appConfig.serviceWorkerConfig});
+    if (appConfig.vapidPublicKey)
+      await Database.put('Options', {key: 'vapidPublicKey', value: appConfig.vapidPublicKey});
   }
 
   static async getAppState(): Promise<AppState> {

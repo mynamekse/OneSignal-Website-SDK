@@ -172,59 +172,56 @@ export default class InitHelper {
     return Promise.all(opPromises);
   }
 
-  static internalInit() {
+  static async internalInit() {
     log.debug('Called %cinternalInit()', getConsoleStyle('code'));
-    Database.get('Ids', 'appId')
-            .then(appId => {
-              // HTTPS - Only register for push notifications once per session or if the user changes notification permission to Ask or Allow.
-              if (sessionStorage.getItem("ONE_SIGNAL_SESSION")
-                && !OneSignal.config.subdomainName
-                && (window.Notification.permission == "denied"
-                || sessionStorage.getItem("ONE_SIGNAL_NOTIFICATION_PERMISSION") == window.Notification.permission)) {
-                Event.trigger(OneSignal.EVENTS.SDK_INITIALIZED);
-                return;
-              }
+    const appId = await Database.get('Ids', 'appId');
+    const localAppConfig = await Database.getAppConfig();
 
-              sessionStorage.setItem("ONE_SIGNAL_NOTIFICATION_PERMISSION", window.Notification.permission);
+    if (Environment.supportsVapid() &&
+       !localAppConfig.vapidPublicKey) {
+      const appConfig = await OneSignalApi.getAppConfig(appId);
+      localAppConfig.vapidPublicKey = appConfig.vapid_public_key;
+      await Database.setAppConfig(localAppConfig);
+      log.debug(`Saving retrieved VAPID public key ${localAppConfig.vapidPublicKey}.`);
+    }
 
-              if (Browser.safari && OneSignal.config.autoRegister === false) {
-                log.debug('On Safari and autoregister is false, skipping sessionInit().');
-                // This *seems* to trigger on either Safari's autoregister false or Chrome HTTP
-                // Chrome HTTP gets an SDK_INITIALIZED event from the iFrame postMessage, so don't call it here
-                if (!SubscriptionHelper.isUsingSubscriptionWorkaround()) {
-                  Event.trigger(OneSignal.EVENTS.SDK_INITIALIZED);
-                }
-                return;
-              }
+    // HTTPS - Only register for push notifications once per session or if the user changes notification permission to Ask or Allow.
+    if (sessionStorage.getItem("ONE_SIGNAL_SESSION")
+      && !OneSignal.config.subdomainName
+      && (window.Notification.permission == "denied"
+      || sessionStorage.getItem("ONE_SIGNAL_NOTIFICATION_PERMISSION") == window.Notification.permission)) {
+      Event.trigger(OneSignal.EVENTS.SDK_INITIALIZED);
+      return;
+    }
 
-              if (OneSignal.config.autoRegister === false && !OneSignal.config.subdomainName) {
-                log.debug('Skipping internal init. Not auto-registering and no subdomain.');
-                /* 3/25: If a user is already registered, re-register them in case the clicked Blocked and then Allow (which immediately invalidates the GCM token as soon as you click Blocked) */
-                OneSignal.isPushNotificationsEnabled().then(isPushEnabled => {
-                  if (isPushEnabled && !SubscriptionHelper.isUsingSubscriptionWorkaround()) {
-                    log.info('Because the user is already subscribed and has enabled notifications, we will re-register their GCM token.');
-                    // Resubscribes them, and in case their GCM registration token was invalid, gets a new one
-                    SubscriptionHelper.registerForW3CPush({});
-                  } else {
-                    ServiceWorkerHelper.updateServiceWorker();
-                  }
-                });
-                Event.trigger(OneSignal.EVENTS.SDK_INITIALIZED);
-                return;
-              }
+    sessionStorage.setItem("ONE_SIGNAL_NOTIFICATION_PERMISSION", window.Notification.permission);
 
-              if (document.visibilityState !== "visible") {
-                once(document, 'visibilitychange', (e, destroyEventListener) => {
-                  if (document.visibilityState === 'visible') {
-                    destroyEventListener();
-                    InitHelper.sessionInit({__sdkCall: true});
-                  }
-                }, true);
-                return;
-              }
+    if (Browser.safari && OneSignal.config.autoRegister === false) {
+      log.debug('On Safari and autoregister is false, skipping sessionInit().');
+      // This *seems* to trigger on either Safari's autoregister false or Chrome HTTP
+      // Chrome HTTP gets an SDK_INITIALIZED event from the iFrame postMessage, so don't call it here
+      if (!SubscriptionHelper.isUsingSubscriptionWorkaround()) {
+        Event.trigger(OneSignal.EVENTS.SDK_INITIALIZED);
+      }
+      return;
+    }
 
-              InitHelper.sessionInit({__sdkCall: true});
-            });
+    if (OneSignal.config.autoRegister === false && !OneSignal.config.subdomainName) {
+      log.debug('Skipping internal init. Not auto-registering and no subdomain.');
+      /* 3/25: If a user is already registered, re-register them in case the clicked Blocked and then Allow (which immediately invalidates the GCM token as soon as you click Blocked) */
+      const isPushEnabled = await OneSignal.isPushNotificationsEnabled();
+      if (isPushEnabled && !SubscriptionHelper.isUsingSubscriptionWorkaround()) {
+        log.info('Because the user is already subscribed and has enabled notifications, we will re-register their GCM token.');
+        // Resubscribes them, and in case their GCM registration token was invalid, gets a new one
+        SubscriptionHelper.registerForW3CPush({});
+      } else {
+        ServiceWorkerHelper.updateServiceWorker();
+      }
+      Event.trigger(OneSignal.EVENTS.SDK_INITIALIZED);
+      return;
+    }
+
+    InitHelper.sessionInit({ __sdkCall: true });
   }
 
   static initSaveState() {
